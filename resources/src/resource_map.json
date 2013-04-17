@@ -1,0 +1,17 @@
+{
+  "friendlyVersion": "0.1",
+  "versionDefName": "APP_RESOURCES",
+  "media": [
+  {
+    "type": "png",
+    "defName": "IMAGE_MENU_ICON",
+    "file": "images/onlinestopwatch.icon.png"
+  },
+
+  {
+    "type": "png",
+    "defName": "IMAGE_BACKGROUND",
+    "file": "images/onlinestopwatch.bw.png"
+  }
+  ]
+}

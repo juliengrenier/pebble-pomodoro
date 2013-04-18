@@ -14,13 +14,15 @@ Window window;
 BmpContainer background_image_container;
 TextLayer title_layer;
 TextLayer remaining_text_layer;
+TextLayer round_layer;
 AppContextRef app;
-
 
 #ifdef DEBUG
 #define TIMER_DELAY 1000
+#define SHORT_TIMER_DELAY 1000
 #else
 #define TIMER_DELAY 60000
+#define SHORT_TIMER_DELAY 10000
 #endif
 
 #ifndef APP_TIMER_INVALID_HANDLE
@@ -43,6 +45,7 @@ static int current_work_lenght_index = 0;
 static int current_relax_lenght_index = 0;
 static int remaining_time = -1; 
 static char remaining_time_text[2] = "00";
+static char round_display_time[5] = "--/--";
 
 void reset_work_count_down();
 void reset_relax_count_down();
@@ -54,6 +57,7 @@ void stop_timer_handler(ClickRecognizerRef recognizer, Window *window);
 void work_elapse_timer_handler(ClickRecognizerRef recognizer, Window *window);
 void relax_elapse_timer_handler(ClickRecognizerRef recognizer, Window *window);
 void toggle_timer(ClickRecognizerRef recognizer, Window *window);
+void display_round();
 
 void itoa2(int num, char* buffer) {
   const char digits[10] = "0123456789";
@@ -82,6 +86,16 @@ void handle_deinit(AppContextRef ctx) {
   (void)ctx;
   bmp_deinit_container(&background_image_container);
 }
+
+void initiate_text_layer(TextLayer *text_layer, Layer *parent_layer, GRect text_placeholder){
+  text_layer_init(text_layer, text_placeholder);
+  text_layer_set_background_color(text_layer, GColorBlack);
+  text_layer_set_text_color(text_layer, GColorWhite);
+
+  layer_add_child(parent_layer, &text_layer->layer);
+
+}
+
 void handle_init(AppContextRef ctx) {
   app = ctx;
 
@@ -96,70 +110,107 @@ void handle_init(AppContextRef ctx) {
   layer_add_child(root_layer, &background_image_container.layer.layer);
 
 
-  text_layer_init(&title_layer, GRect(55, 50, 55, 35));
-  text_layer_set_background_color(&title_layer, GColorBlack);
-  text_layer_set_text_color(&title_layer, GColorWhite);
-
-  text_layer_init(&remaining_text_layer, GRect(55, 80, 25, 15));
-  text_layer_set_background_color(&remaining_text_layer, GColorBlack);
-  text_layer_set_text_color(&remaining_text_layer, GColorWhite);
-
-  layer_add_child(root_layer, &title_layer.layer);
-  layer_add_child(root_layer, &remaining_text_layer.layer);
+  initiate_text_layer(&title_layer, root_layer, GRect(55, 45, 50, 25)); 
+  initiate_text_layer(&remaining_text_layer, root_layer, GRect(55, 60, 25, 15)); 
+  initiate_text_layer(&round_layer, root_layer, GRect(55, 90, 45, 15)); 
+  display_round();
   reset_work_count_down();
 
   // Arrange for user input.
   window_set_click_config_provider(&window, (ClickConfigProvider) config_provider);
+}
+
+void display_round(){
+  static char buffer[2] = "--";
+  itoa2(get_current_work_length(), buffer);
+  round_display_time[0] = buffer[0];
+  round_display_time[1] = buffer[1];
+
+  itoa2(get_current_relax_length(), buffer);
+  round_display_time[3] = buffer[0];
+  round_display_time[4] = buffer[1];
+  text_layer_set_text(&round_layer, round_display_time);
+}
+
+void display_time(){
+  if (started){
+    itoa2(remaining_time, remaining_time_text);
+    text_layer_set_text(&remaining_text_layer, remaining_time_text);
+  }else{
+    text_layer_set_text(&remaining_text_layer, "--");
+  }
+}
+
+void display_title(){
+  if(started){
+    if(working_mode){
+      text_layer_set_text(&title_layer, "WORK");
+    }else{
+      text_layer_set_text(&title_layer, "RELAX");
+    }
+  }else{
+    text_layer_set_text(&title_layer, "STOP");
+  }
+}
+void display_title_and_time(){
+  display_time();
+  display_title();
 }
 void handle_timer(AppContextRef ctx, AppTimerHandle handle, uint32_t cookie) {
   (void)handle;
   if(cookie == TIMER_UPDATE) {
     if(started) {
       remaining_time -= 1;
-      if (remaining_time < 0){
+      if (remaining_time == 0){
         if (working_mode){
           vibes_short_pulse();
-          reset_relax_count_down();
         }
         else{
           vibes_double_pulse();
-          reset_work_count_down();
         }
+        start_timer(SHORT_TIMER_DELAY);
       }else{
-        itoa2(remaining_time, remaining_time_text);
-        text_layer_set_text(&remaining_text_layer, remaining_time_text);
+        if (remaining_time < 0){
+          if (working_mode){
+            reset_relax_count_down();
+          }
+          else{
+            reset_work_count_down();
+          }
+        }else{
+          display_time();
+        }
+        start_timer(TIMER_DELAY);
       }
-      
-      start_timer();
     }
   }
 }
-void start_timer(){
-  update_timer = app_timer_send_event(app, TIMER_DELAY, TIMER_UPDATE);
+void start_timer(int delay){
+  update_timer = app_timer_send_event(app, delay, TIMER_UPDATE);
   started = true;
+  display_title_and_time();
 }
 
 void stop_timer(){
   started = false;
+  display_title_and_time();
   if (update_timer != APP_TIMER_INVALID_HANDLE){
     if(app_timer_cancel_event(app, update_timer)) {
       update_timer = APP_TIMER_INVALID_HANDLE;
     }
   }
 }
+
+
 void reset_work_count_down(){
   remaining_time = get_current_work_length();
-  itoa2(remaining_time, remaining_time_text);
-  text_layer_set_text(&remaining_text_layer, remaining_time_text);
-  text_layer_set_text(&title_layer, "WORK");
   working_mode = true;
+  display_title_and_time();
 }
 void reset_relax_count_down(){
   remaining_time = get_current_relax_length();
-  itoa2(remaining_time, remaining_time_text);
-  text_layer_set_text(&remaining_text_layer, remaining_time_text);
-  text_layer_set_text(&title_layer, "RELAX");
   working_mode = false;
+  display_title_and_time();
 }
 void config_provider(ClickConfig **config, Window *window) {
   config[BUTTON_WORKTIMER]->click.handler = (ClickHandler)work_elapse_timer_handler;
@@ -176,30 +227,27 @@ void stop_timer_handler(ClickRecognizerRef recognizer, Window *window){
   stop_timer();
 }
 void work_elapse_timer_handler(ClickRecognizerRef recognizer, Window *window){
-  if (started){
-    return;
-  }
   current_work_lenght_index += 1;
   if ( current_work_lenght_index == NUM_WORK_SETTINGS){
     current_work_lenght_index = 0;
   }
+  display_round();
 }
 void relax_elapse_timer_handler(ClickRecognizerRef recognizer, Window *window){
-  if (started){
-    return;
-  }
   current_relax_lenght_index += 1;
   if ( current_relax_lenght_index == NUM_RELAX_SETTINGS){
     current_relax_lenght_index = 0;
   }
+  display_round();
 }
 void reset_timer(ClickRecognizerRef recognizer, Window *window){
-  stop_timer();
+  started = true;
   reset_work_count_down();
+  start_timer(TIMER_DELAY);
 }
 void toggle_timer(ClickRecognizerRef recognizer, Window *window){
   if (update_timer == APP_TIMER_INVALID_HANDLE){
-    start_timer();
+    start_timer(TIMER_DELAY);
   }else{
     stop_timer();
   }

@@ -6,7 +6,7 @@
 #define MY_UUID { 0x34, 0x25, 0x24, 0xB8, 0xB4, 0x01, 0x44, 0x55, 0x89, 0x8B, 0x0C, 0xB6, 0x25, 0xFF, 0x62, 0x31 }
 PBL_APP_INFO(MY_UUID,
     "Pomodoro App", "mail@juliengrenier.cc",
-    1, 0, /* App version */
+    1, 1, /* App version */
     RESOURCE_ID_IMAGE_MENU_ICON,
     APP_INFO_STANDARD_APP);
 

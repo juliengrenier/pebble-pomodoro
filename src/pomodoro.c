@@ -22,7 +22,7 @@ AppContextRef app;
 #define SHORT_TIMER_DELAY 1000
 #else
 #define TIMER_DELAY 60000
-#define SHORT_TIMER_DELAY 10000
+#define SHORT_TIMER_DELAY 2000
 #endif
 
 #ifndef APP_TIMER_INVALID_HANDLE

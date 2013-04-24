@@ -16,12 +16,11 @@ TextLayer title_layer;
 TextLayer remaining_text_layer;
 TextLayer round_layer;
 AppContextRef app;
-
 #ifdef DEBUG
-#define TIMER_DELAY 1000
+#define TIMER_DELAY 100
 #define SHORT_TIMER_DELAY 1000
 #else
-#define TIMER_DELAY 60000
+#define TIMER_DELAY 1000
 #define SHORT_TIMER_DELAY 2000
 #endif
 
@@ -44,7 +43,7 @@ static const char relax_lenghts[NUM_RELAX_SETTINGS] = { 3, 4, 5, 6, 7, 8 };
 static int current_work_lenght_index = 0;
 static int current_relax_lenght_index = 0;
 static int remaining_time = -1; 
-static char remaining_time_text[2] = "00";
+static char remaining_time_text[5] = "00:00";
 static char round_display_time[5] = "--/--";
 
 void reset_work_count_down();
@@ -71,6 +70,24 @@ void itoa2(int num, char* buffer) {
     buffer[0] = '0';
   }
   buffer[1] = digits[num % 10];
+}
+
+void format_seconds(int seconds, char* display_buffer){
+  static char buffer[2];
+  if (seconds > 60){
+    itoa2(seconds/60, buffer);
+    display_buffer[0] = buffer[0];
+    display_buffer[1] = buffer[1];
+    seconds = seconds % 60;//removing the minutes;
+  }else{
+    display_buffer[0] = '0';
+    display_buffer[1] = '0';
+  }
+  display_buffer[2] = ':';
+
+  itoa2(seconds, buffer);
+  display_buffer[3] = buffer[0];
+  display_buffer[4] = buffer[1];
 }
 
 int get_current_work_length(){
@@ -101,7 +118,7 @@ void handle_init(AppContextRef ctx) {
 
   window_init(&window, "Pomodoro");
   window_stack_push(&window, true /* Animated */);
-  window_set_background_color(&window, GColorBlack);
+  window_set_background_color(&window, GColorWhite);
   window_set_fullscreen(&window, false);
   Layer *root_layer = window_get_root_layer(&window);
   // Set up a layer for the static watch face background
@@ -111,8 +128,8 @@ void handle_init(AppContextRef ctx) {
 
 
   initiate_text_layer(&title_layer, root_layer, GRect(55, 45, 50, 25)); 
-  initiate_text_layer(&remaining_text_layer, root_layer, GRect(55, 60, 25, 15)); 
-  initiate_text_layer(&round_layer, root_layer, GRect(55, 90, 45, 15)); 
+  initiate_text_layer(&remaining_text_layer, root_layer, GRect(55, 60, 35, 15)); 
+  initiate_text_layer(&round_layer, root_layer, GRect(55, 80, 45, 15)); 
   display_round();
   reset_work_count_down();
 
@@ -134,10 +151,10 @@ void display_round(){
 
 void display_time(){
   if (started){
-    itoa2(remaining_time, remaining_time_text);
+    format_seconds(remaining_time, remaining_time_text);
     text_layer_set_text(&remaining_text_layer, remaining_time_text);
   }else{
-    text_layer_set_text(&remaining_text_layer, "--");
+    text_layer_set_text(&remaining_text_layer, "--:--");
   }
 }
 
@@ -203,12 +220,12 @@ void stop_timer(){
 
 
 void reset_work_count_down(){
-  remaining_time = get_current_work_length();
+  remaining_time = get_current_work_length() * 60;
   working_mode = true;
   display_title_and_time();
 }
 void reset_relax_count_down(){
-  remaining_time = get_current_relax_length();
+  remaining_time = get_current_relax_length() * 60;
   working_mode = false;
   display_title_and_time();
 }
